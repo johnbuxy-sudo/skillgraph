@@ -195,11 +195,24 @@ Every push to `main` can trigger a new Vercel deployment when the GitHub integra
 
 ## Screenshots
 
-Add 2–3 final screenshots here before submission:
+### Dashboard
+![SkillGraph dashboard](./dashboard.png)
 
-1. Home/dashboard with live graph statistics.
-2. Technology filter showing a multi-hop result.
-3. Person detail showing connected skills/projects/collaborators.
+### Technology graph exploration
+![Technology graph exploration](./graph-results.png)
+
+### Person profile
+![Person profile](./person-profile.png)
+
+
+### Dashboard
+![SkillGraph dashboard](./dashboard.png)
+
+### Technology graph exploration
+![Technology graph exploration](./graph-results.png)
+
+### Person profile
+![Person profile](./person-profile.png)
 
 ## Screen recording
 
