@@ -204,16 +204,6 @@ Every push to `main` can trigger a new Vercel deployment when the GitHub integra
 ### Person profile
 ![Person profile](./person-profile.png)
 
-
-### Dashboard
-![SkillGraph dashboard](./dashboard.png)
-
-### Technology graph exploration
-![Technology graph exploration](./graph-results.png)
-
-### Person profile
-![Person profile](./person-profile.png)
-
 ## Screen recording
 
 **Required before submission:** record a short 60–120 second walkthrough showing:
@@ -240,6 +230,6 @@ Paste the recording link here before emailing Wexa.
 - [x] Environment-based secrets
 - [x] Graceful database failure
 - [x] Hosted Vercel demo
-- [ ] Final screenshots
+- [x] Final screenshots
 - [ ] Short screen recording link
 - [ ] Final review of live CognoDB data
