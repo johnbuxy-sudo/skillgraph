@@ -15,66 +15,127 @@ const people = [
   { id: "p4", name: "Daniel Okafor", role: "Backend Engineer" },
   { id: "p5", name: "Maya Patel", role: "Data Engineer" },
   { id: "p6", name: "Fatima Bello", role: "Product Engineer" },
+  { id: "p7", name: "James Adeyemi", role: "DevOps Engineer" },
+  { id: "p8", name: "Grace Kim", role: "Data Platform Engineer" },
 ];
 
-const skills = ["TypeScript", "GraphQL", "React", "Python", "Next.js", "PostgreSQL", "Docker", "Kubernetes"];
+const skills = ["TypeScript", "GraphQL", "React", "Python", "Next.js", "PostgreSQL", "Docker", "Kubernetes", "Data Engineering", "System Design"];
 const technologies = ["TypeScript", "GraphQL", "React", "Next.js", "PostgreSQL", "Python", "Docker", "Kubernetes"];
 const projects = [
   { id: "pr1", name: "Atlas", description: "Internal developer platform" },
   { id: "pr2", name: "Mercury", description: "Customer data platform" },
   { id: "pr3", name: "Nova", description: "Analytics workspace" },
   { id: "pr4", name: "Pulse", description: "Product insights dashboard" },
+  { id: "pr5", name: "Orbit", description: "Developer observability platform" },
+];
+
+const personSkills: Record<string, string[]> = {
+  p1: ["TypeScript", "GraphQL", "Next.js", "System Design"],
+  p2: ["TypeScript", "Docker", "Kubernetes", "System Design"],
+  p3: ["React", "Next.js", "TypeScript"],
+  p4: ["GraphQL", "PostgreSQL", "Python", "System Design"],
+  p5: ["Python", "PostgreSQL", "Data Engineering"],
+  p6: ["TypeScript", "React", "GraphQL"],
+  p7: ["Docker", "Kubernetes", "Python", "System Design"],
+  p8: ["Python", "PostgreSQL", "Data Engineering", "Docker"],
+};
+
+const work: Array<[string, string]> = [
+  ["p1", "pr1"], ["p2", "pr1"], ["p3", "pr1"],
+  ["p2", "pr2"], ["p4", "pr2"], ["p5", "pr2"],
+  ["p4", "pr3"], ["p5", "pr3"], ["p8", "pr3"],
+  ["p6", "pr4"], ["p3", "pr4"], ["p1", "pr4"],
+  ["p2", "pr5"], ["p7", "pr5"], ["p8", "pr5"],
+];
+
+const projectTechnologies: Record<string, string[]> = {
+  pr1: ["TypeScript", "GraphQL", "Next.js", "Docker"],
+  pr2: ["Python", "PostgreSQL", "Docker"],
+  pr3: ["Python", "PostgreSQL", "Kubernetes"],
+  pr4: ["React", "Next.js", "TypeScript", "GraphQL"],
+  pr5: ["Kubernetes", "Docker", "Python"],
+};
+
+const collaborations: Array<[string, string]> = [
+  ["p1", "p2"], ["p2", "p4"], ["p3", "p6"], ["p4", "p5"],
+  ["p2", "p7"], ["p5", "p8"], ["p7", "p8"], ["p1", "p6"],
 ];
 
 async function main() {
   const session = driver.session();
   try {
-    await session.run("MATCH (n) DETACH DELETE n");
-    await session.run(`UNWIND $people AS person CREATE (:Person {id: person.id, name: person.name, role: person.role})`, { people });
-    await session.run(`UNWIND $skills AS name CREATE (:Skill {name})`, { skills });
-    await session.run(`UNWIND $technologies AS name CREATE (:Technology {name})`, { technologies });
-    await session.run(`UNWIND $projects AS project CREATE (:Project {id: project.id, name: project.name, description: project.description})`, { projects });
+    // Idempotent seed: rerunning this script updates the same logical graph instead of deleting it.
+    await session.run(
+      `UNWIND $people AS person
+       MERGE (p:Person {id: person.id})
+       SET p.name = person.name, p.role = person.role`,
+      { people }
+    );
+
+    await session.run(
+      `UNWIND $skills AS name MERGE (:Skill {name: name})`,
+      { skills }
+    );
+
+    await session.run(
+      `UNWIND $technologies AS name MERGE (:Technology {name: name})`,
+      { technologies }
+    );
+
+    await session.run(
+      `UNWIND $projects AS project
+       MERGE (p:Project {id: project.id})
+       SET p.name = project.name, p.description = project.description`,
+      { projects }
+    );
+
+    await session.run(
+      `UNWIND $rows AS row
+       MATCH (p:Person {id: row.personId}), (s:Skill {name: row.skill})
+       MERGE (p)-[:HAS_SKILL]->(s)`,
+      { rows: Object.entries(personSkills).flatMap(([personId, values]) => values.map((skill) => ({ personId, skill }))) }
+    );
+
+    await session.run(
+      `UNWIND $work AS row
+       MATCH (p:Person {id: row[0]}), (project:Project {id: row[1]})
+       MERGE (p)-[:WORKED_ON]->(project)`,
+      { work }
+    );
+
+    await session.run(
+      `UNWIND $rows AS row
+       MATCH (project:Project {id: row.projectId}), (technology:Technology {name: row.technology})
+       MERGE (project)-[:USES]->(technology)`,
+      { rows: Object.entries(projectTechnologies).flatMap(([projectId, values]) => values.map((technology) => ({ projectId, technology }))) }
+    );
+
+    await session.run(
+      `UNWIND $collaborations AS row
+       MATCH (a:Person {id: row[0]}), (b:Person {id: row[1]})
+       MERGE (a)-[:COLLABORATED_WITH]->(b)
+       MERGE (b)-[:COLLABORATED_WITH]->(a)`,
+      { collaborations }
+    );
 
     await session.run(`
-      MATCH (p1:Person {id:"p1"}), (p2:Person {id:"p2"}), (p3:Person {id:"p3"}),
-            (p4:Person {id:"p4"}), (p5:Person {id:"p5"}), (p6:Person {id:"p6"})
-      MATCH (s1:Skill {name:"TypeScript"}), (s2:Skill {name:"GraphQL"}), (s3:Skill {name:"React"}),
-            (s4:Skill {name:"Python"}), (s5:Skill {name:"Next.js"}), (s6:Skill {name:"PostgreSQL"}),
-            (s7:Skill {name:"Docker"}), (s8:Skill {name:"Kubernetes"})
-      CREATE (p1)-[:HAS_SKILL]->(s1), (p1)-[:HAS_SKILL]->(s2), (p1)-[:HAS_SKILL]->(s5),
-             (p2)-[:HAS_SKILL]->(s1), (p2)-[:HAS_SKILL]->(s7), (p2)-[:HAS_SKILL]->(s8),
-             (p3)-[:HAS_SKILL]->(s3), (p3)-[:HAS_SKILL]->(s5), (p4)-[:HAS_SKILL]->(s2),
-             (p4)-[:HAS_SKILL]->(s6), (p4)-[:HAS_SKILL]->(s4), (p5)-[:HAS_SKILL]->(s4),
-             (p5)-[:HAS_SKILL]->(s6), (p6)-[:HAS_SKILL]->(s1), (p6)-[:HAS_SKILL]->(s3)
+      UNWIND [
+        ["TypeScript", "GraphQL"], ["TypeScript", "Next.js"], ["React", "Next.js"],
+        ["Python", "PostgreSQL"], ["Docker", "Kubernetes"]
+      ] AS pair
+      MATCH (a:Skill {name: pair[0]}), (b:Skill {name: pair[1]})
+      MERGE (a)-[:RELATED_TO]->(b)
+      MERGE (b)-[:RELATED_TO]->(a)
     `);
 
-    await session.run(`
-      MATCH (p1:Person {id:"p1"}), (p2:Person {id:"p2"}), (p3:Person {id:"p3"}), (p4:Person {id:"p4"}), (p5:Person {id:"p5"}), (p6:Person {id:"p6"})
-      MATCH (a:Project {id:"pr1"}), (m:Project {id:"pr2"}), (n:Project {id:"pr3"}), (pu:Project {id:"pr4"})
-      CREATE (p1)-[:WORKED_ON]->(a), (p2)-[:WORKED_ON]->(a), (p3)-[:WORKED_ON]->(a),
-             (p2)-[:WORKED_ON]->(m), (p4)-[:WORKED_ON]->(m), (p5)-[:WORKED_ON]->(n),
-             (p4)-[:WORKED_ON]->(n), (p6)-[:WORKED_ON]->(pu), (p3)-[:WORKED_ON]->(pu),
-             (p1)-[:COLLABORATED_WITH]->(p2), (p2)-[:COLLABORATED_WITH]->(p4),
-             (p3)-[:COLLABORATED_WITH]->(p6), (p4)-[:COLLABORATED_WITH]->(p5)
+    const counts = await session.run(`
+      MATCH (p:Person) WITH count(p) AS people
+      MATCH (s:Skill) WITH people, count(s) AS skills
+      MATCH (pr:Project) WITH people, skills, count(pr) AS projects
+      MATCH (t:Technology)
+      RETURN people, skills, projects, count(t) AS technologies
     `);
-
-    await session.run(`
-      MATCH (a:Project {id:"pr1"}), (m:Project {id:"pr2"}), (n:Project {id:"pr3"}), (pu:Project {id:"pr4"})
-      MATCH (t1:Technology {name:"TypeScript"}), (t2:Technology {name:"GraphQL"}), (t3:Technology {name:"React"}),
-            (t4:Technology {name:"Next.js"}), (t5:Technology {name:"PostgreSQL"}), (t6:Technology {name:"Python"}),
-            (t7:Technology {name:"Docker"}), (t8:Technology {name:"Kubernetes"})
-      CREATE (a)-[:USES]->(t1), (a)-[:USES]->(t2), (a)-[:USES]->(t4), (a)-[:USES]->(t7),
-             (m)-[:USES]->(t6), (m)-[:USES]->(t5), (m)-[:USES]->(t7),
-             (n)-[:USES]->(t6), (n)-[:USES]->(t5), (n)-[:USES]->(t8),
-             (pu)-[:USES]->(t3), (pu)-[:USES]->(t4), (pu)-[:USES]->(t1)
-    `);
-
-    await session.run(`
-      MATCH (s1:Skill {name:"TypeScript"}), (s2:Skill {name:"GraphQL"}), (s3:Skill {name:"React"}), (s4:Skill {name:"Next.js"})
-      CREATE (s1)-[:RELATED_TO]->(s2), (s1)-[:RELATED_TO]->(s4), (s3)-[:RELATED_TO]->(s4)
-    `);
-
-    console.log("SkillGraph seed complete.");
+    console.log("SkillGraph seed complete:", counts.records[0]?.toObject());
   } finally {
     await session.close();
     await driver.close();
