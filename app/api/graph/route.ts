@@ -9,11 +9,8 @@ export async function GET(request: NextRequest) {
   const technology = (searchParams.get("technology") ?? "").trim();
   const personId = (searchParams.get("personId") ?? "").trim();
 
-  let driver;
   try {
-    driver = getDriver();
-    const session = driver.session();
-
+    const session = getDriver().session();
     try {
       const counts = await session.run(`
         MATCH (p:Person) WITH count(p) AS people
@@ -92,7 +89,5 @@ export async function GET(request: NextRequest) {
       { error: "We couldn't reach the graph right now. Please try again." },
       { status: 503 }
     );
-  } finally {
-    await driver?.close();
   }
 }
