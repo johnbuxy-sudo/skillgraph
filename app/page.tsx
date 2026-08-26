@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 type Stats = { people: number; skills: number; projects: number; technologies: number };
 type Path = { personId: string; person: string; project: string; technology: string };
@@ -15,7 +15,6 @@ export default function Home() {
   const [data, setData] = useState<GraphResponse>({ stats: fallbackStats, paths: [], people: [], person: null });
   const [query, setQuery] = useState("");
   const [activeTechnology, setActiveTechnology] = useState("");
-  const [selectedPerson, setSelectedPerson] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -42,23 +41,18 @@ export default function Home() {
     loadGraph();
   }, []);
 
-  const filteredPaths = useMemo(() => data.paths, [data.paths]);
-
   function submitSearch(event: React.FormEvent) {
     event.preventDefault();
-    setSelectedPerson("");
     loadGraph({ q: query, technology: activeTechnology });
   }
 
   function selectTechnology(value: string) {
     const next = activeTechnology === value ? "" : value;
     setActiveTechnology(next);
-    setSelectedPerson("");
     loadGraph({ q: query, technology: next });
   }
 
   function selectPerson(person: Person) {
-    setSelectedPerson(person.id);
     loadGraph({ personId: person.id, q: query, technology: activeTechnology });
   }
 
@@ -97,7 +91,7 @@ export default function Home() {
       </section>
 
       <section className="section">
-        <div className="section-heading"><div><div className="kicker">FILTER BY PATH</div><h2>Technologies in the graph</h2></div><span className="result-count">{filteredPaths.length} paths</span></div>
+        <div className="section-heading"><div><div className="kicker">FILTER BY PATH</div><h2>Technologies in the graph</h2></div><span className="result-count">{data.paths.length} paths</span></div>
         <div className="pills">
           {technologies.map((technology) => <button className={`pill ${activeTechnology === technology ? "active" : ""}`} key={technology} onClick={() => selectTechnology(technology)} type="button">{technology}</button>)}
         </div>
@@ -109,7 +103,7 @@ export default function Home() {
 
       <section className="section">
         <div className="section-heading"><div><div className="kicker">MULTI-HOP RESULTS</div><h2>{activeTechnology ? `People connected to ${activeTechnology}` : "Project technology paths"}</h2></div></div>
-        {loading ? <div className="state">Loading connected paths…</div> : filteredPaths.length === 0 ? <div className="state"><strong>No paths found</strong><span>Try another technology or a broader search.</span></div> : <div className="path-list">{filteredPaths.map((path, index) => <button className="path-row" key={`${path.personId}-${path.project}-${path.technology}-${index}`} onClick={() => selectPerson({ id: path.personId, name: path.person, role: "" })} type="button"><span className="node person-node">{path.person}</span><span className="arrow">WORKED ON →</span><span className="node">{path.project}</span><span className="arrow">USES →</span><span className="node tech-node">{path.technology}</span></button>)}</div>}
+        {loading ? <div className="state">Loading connected paths…</div> : data.paths.length === 0 ? <div className="state"><strong>No paths found</strong><span>Try another technology or a broader search.</span></div> : <div className="path-list">{data.paths.map((path, index) => <button className="path-row" key={`${path.personId}-${path.project}-${path.technology}-${index}`} onClick={() => selectPerson({ id: path.personId, name: path.person, role: "" })} type="button"><span className="node person-node">{path.person}</span><span className="arrow">WORKED ON →</span><span className="node">{path.project}</span><span className="arrow">USES →</span><span className="node tech-node">{path.technology}</span></button>)}</div>}
       </section>
 
       {data.person && <section className="detail-panel section"><div><div className="kicker">PERSON PROFILE</div><h2>{data.person.name}</h2><p>{data.person.role}</p></div><div className="detail-columns"><div><span className="mini-label">Skills</span><div className="pills">{data.person.skills.filter(Boolean).map((skill) => <span className="pill" key={skill}>{skill}</span>)}</div></div><div><span className="mini-label">Projects</span><ul>{data.person.projects.filter(Boolean).map((project) => <li key={project}>{project}</li>)}</ul></div><div><span className="mini-label">Collaborators</span><ul>{data.person.collaborators.filter(Boolean).map((person) => <li key={person}>{person}</li>)}</ul></div></div></section>}
